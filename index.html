@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplatform Icon Converter</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Multiplatform Icon Converter</h1>
+        <p>Convert your images to platform-specific icon formats for Compose Multiplatform applications</p>
+        
+        <div class="upload-section">
+            <input type="file" id="imageUpload" accept="image/*">
+            <div id="dropZone" class="drop-zone">
+                <div class="drop-zone-content">
+                    <div class="upload-icon">📁</div>
+                    <p>Drag & drop an image here or <span class="upload-link">browse files</span></p>
+                    <small>Supported formats: PNG, JPG, JPEG, GIF, WebP</small>
+                </div>
+            </div>
+            <div id="previewContainer" class="preview-container" style="display: none;">
+                <div class="preview-header">
+                    <h3>Image Preview</h3>
+                    <button id="removeImage" class="remove-btn">✕</button>
+                </div>
+                <img id="imagePreview" src="" alt="Preview">
+                <div class="image-info">
+                    <span id="imageSize">Size: Loading...</span>
+                    <span id="imageFormat">Format: Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="filename-section">
+            <label for="filenameInput">Output Filename:</label>
+            <input type="text" id="filenameInput" placeholder="Enter filename (without extension)" value="app_icon">
+            <small>The generated files will use this name</small>
+        </div>
+        
+        <div class="platform-options">
+            <h2>Select Platforms</h2>
+            <div class="checkbox-group">
+                <label>
+                    <input type="checkbox" id="macOS" checked>
+                    <span>macOS (.icns)</span>
+                </label>
+                <label>
+                    <input type="checkbox" id="windows" checked>
+                    <span>Windows (.ico)</span>
+                </label>
+                <label>
+                    <input type="checkbox" id="linux" checked>
+                    <span>Linux (.png)</span>
+                </label>
+            </div>
+        </div>
+        
+        <div class="convert-section">
+            <button id="convertBtn" class="convert-btn">Convert Icons</button>
+            <button id="resetBtn" class="reset-btn">Reset</button>
+        </div>
+
+        <div id="progressContainer" class="progress-container" style="display: none;">
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+            </div>
+            <div id="progressText" class="progress-text">Processing image...</div>
+        </div>
+        
+        <div id="resultContainer" class="result-container" style="display: none;">
+            <h2>Conversion Results</h2>
+            <div id="resultContent"></div>
+            <button id="downloadAllBtn" class="download-btn">Download All</button>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/file-saver/2.0.5/FileSaver.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
