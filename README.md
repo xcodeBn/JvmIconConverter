@@ -67,6 +67,10 @@ This webapp is built with:
 
 The image processing is done entirely in the browser using the Canvas API, so no server-side processing is required.
 
+## Troubleshooting
+
+If you encounter issues with the webapp (especially after deployment), check out the [TROUBLESHOOTING.md](TROUBLESHOOTING.md) guide for common solutions.
+
 ## License
 
 MIT License

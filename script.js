@@ -1,17 +1,52 @@
 // Helper function to convert data URL to Blob
 function dataURLToBlob(dataURL) {
-    const parts = dataURL.split(';base64,');
-    const contentType = parts[0].split(':')[1];
-    const byteString = atob(parts[1]);
-    const ab = new ArrayBuffer(byteString.length);
-    const ia = new Uint8Array(ab);
-    
-    for (let i = 0; i < byteString.length; i++) {
-        ia[i] = byteString.charCodeAt(i);
+    try {
+        const parts = dataURL.split(';base64,');
+        const contentType = parts[0].split(':')[1];
+        const byteString = atob(parts[1]);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+
+        for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+        }
+
+        return new Blob([ab], { type: contentType });
+    } catch (error) {
+        console.error('Error converting data URL to blob:', error);
+        return null;
     }
-    
-    return new Blob([ab], { type: contentType });
 }
+
+// Debug: Check if scripts loaded
+console.log('🚀 Multiplatform Icon Converter loaded successfully');
+console.log('📋 Secure context:', window.isSecureContext);
+console.log('🔗 Protocol:', window.location.protocol);
+console.log('📦 JSZip available:', typeof JSZip !== 'undefined');
+console.log('💾 FileSaver available:', typeof saveAs !== 'undefined');
+
+// Simple functionality test
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📄 DOM loaded, testing basic functionality...');
+
+    // Test if basic elements exist
+    const convertBtn = document.getElementById('convertBtn');
+    const imageUpload = document.getElementById('imageUpload');
+    const resultContainerTest = document.getElementById('resultContainer');
+    const resultContentTest = document.getElementById('resultContent');
+
+    console.log('🔍 Element check:');
+    console.log('  - convertBtn:', convertBtn ? '✅ Found' : '❌ Missing');
+    console.log('  - imageUpload:', imageUpload ? '✅ Found' : '❌ Missing');
+    console.log('  - resultContainer:', resultContainerTest ? '✅ Found' : '❌ Missing');
+    console.log('  - resultContent:', resultContentTest ? '✅ Found' : '❌ Missing');
+
+    if (convertBtn && imageUpload && resultContainerTest && resultContentTest) {
+        console.log('✅ All basic elements found');
+    } else {
+        console.error('❌ Some basic elements missing');
+    }
+});
 
 // Platform-specific icon sizes
 const MACOS_SIZES = [16, 32, 64, 128, 256, 512, 1024];
@@ -125,19 +160,25 @@ removeImage.addEventListener('click', function() {
 });
 
 // Reset image
-function resetImage() {
+function resetImage(preserveResults = false) {
     imageUpload.value = '';
     imagePreview.src = '';
     previewContainer.style.display = 'none';
     dropZone.style.display = 'block';
     imageSize.textContent = 'Size: Loading...';
     imageFormat.textContent = 'Format: Loading...';
-    resultContainer.style.display = 'none';
+    
+    if (!preserveResults) {
+        resultContainer.style.display = 'none';
+        resultContainer.classList.remove('persistent');
+        convertedImages = {}; // Clear stored images
+    }
+    
     progressContainer.style.display = 'none';
 }
 
 // Handle convert button click
-convertBtn.addEventListener('click', function() {
+convertBtn.addEventListener('click', async function() {
     const file = imageUpload.files[0];
     if (!file) {
         alert('Please select an image first');
@@ -154,59 +195,80 @@ convertBtn.addEventListener('click', function() {
     progressContainer.style.display = 'block';
     updateProgress(0, 'Starting conversion...');
 
-    // Read the image file
-    const reader = new FileReader();
-    reader.onload = function(event) {
-        const img = new Image();
-        img.onload = function() {
-            // Convert for selected platforms
-            const platforms = [];
-            if (document.getElementById('macOS').checked) platforms.push('macOS');
-            if (document.getElementById('windows').checked) platforms.push('windows');
-            if (document.getElementById('linux').checked) platforms.push('linux');
+    try {
+        // Read the image file
+        const img = await loadImage(file);
+        updateProgress(10, 'Image loaded, processing...');
 
-            if (platforms.length === 0) {
-                resultContent.innerHTML = '<div class="status-message status-error">Please select at least one platform</div>';
-                progressContainer.style.display = 'none';
-                return;
+        // Convert for selected platforms
+        const platforms = [];
+        if (document.getElementById('macOS').checked) platforms.push('macOS');
+        if (document.getElementById('windows').checked) platforms.push('windows');
+        if (document.getElementById('linux').checked) platforms.push('linux');
+
+        if (platforms.length === 0) {
+            resultContent.innerHTML = '<div class="status-message status-error">Please select at least one platform</div>';
+            progressContainer.style.display = 'none';
+            return;
+        }
+
+        updateProgress(25, 'Processing platforms...');
+
+        // Process each platform asynchronously
+        const conversionPromises = platforms.map(async (platform, index) => {
+            updateProgress(25 + (index / platforms.length) * 50, `Processing ${platform}...`);
+
+            switch(platform) {
+                case 'macOS':
+                    await convertToMacOS(img, customName);
+                    break;
+                case 'windows':
+                    await convertToWindows(img, customName);
+                    break;
+                case 'linux':
+                    await convertToLinux(img, customName);
+                    break;
             }
+        });
 
-            updateProgress(25, 'Processing platforms...');
+        // Wait for all conversions to complete
+        await Promise.all(conversionPromises);
 
-            // Process each platform
-            let completed = 0;
-            platforms.forEach(platform => {
-                switch(platform) {
-                    case 'macOS':
-                        convertToMacOS(img, customName);
-                        break;
-                    case 'windows':
-                        convertToWindows(img, customName);
-                        break;
-                    case 'linux':
-                        convertToLinux(img, customName);
-                        break;
-                }
-                completed++;
-                updateProgress(25 + (completed / platforms.length) * 50, `Processing ${platform}...`);
-            });
+        // Display results
+        updateProgress(100, 'Conversion complete!');
+        setTimeout(() => {
+            progressContainer.style.display = 'none';
+            displayResults(platforms);
+            // Ensure results container stays visible
+            resultContainer.style.display = 'block';
+            resultContainer.style.visibility = 'visible';
+            resultContainer.style.opacity = '1';
+        }, 500);
 
-            // Display results
-            setTimeout(() => {
-                updateProgress(100, 'Conversion complete!');
-                setTimeout(() => {
-                    progressContainer.style.display = 'none';
-                    displayResults(platforms);
-                }, 500);
-            }, 1000);
-        };
-        img.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+        console.error('Conversion failed:', error);
+        resultContent.innerHTML = '<div class="status-message status-error">Conversion failed. Please try again.</div>';
+        progressContainer.style.display = 'none';
+    }
 });
 
+// Helper function to load image
+function loadImage(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = event.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
 // Convert image for macOS
-function convertToMacOS(img, customName) {
+async function convertToMacOS(img, customName) {
     const iconName = customName || imageUpload.files[0].name.split('.')[0];
     const sizes = MACOS_SIZES;
 
@@ -233,11 +295,11 @@ function convertToMacOS(img, customName) {
     });
 
     // Create ICNS file from PNG files
-    createICNSFile(convertedImages.macOS.files, iconName);
+    await createICNSFile(convertedImages.macOS.files, iconName);
 }
 
 // Convert image for Windows
-function convertToWindows(img, customName) {
+async function convertToWindows(img, customName) {
     const iconName = customName || imageUpload.files[0].name.split('.')[0];
     const sizes = WINDOWS_SIZES;
 
@@ -264,46 +326,97 @@ function convertToWindows(img, customName) {
     });
 
     // Create ICO file from PNG files
-    createICOFile(convertedImages.windows.files, iconName);
+    await createICOFile(convertedImages.windows.files, iconName);
 }
 
 // Convert image for Linux
-function convertToLinux(img, customName) {
+async function convertToLinux(img, customName) {
     const iconName = customName || imageUpload.files[0].name.split('.')[0];
     const size = LINUX_SIZES[0];
-    
+
     convertedImages.linux = {
         name: iconName,
         sizes: [size],
         files: []
     };
-    
+
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
-    
+
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0, size, size);
-    
+
     const dataURL = canvas.toDataURL('image/png');
     convertedImages.linux.files.push({
         name: `${iconName}.png`,
         data: dataURL,
         size: size
     });
+
+    // Linux doesn't need async file creation, so we return a resolved promise
+    return Promise.resolve();
 }
 
 // Display conversion results
 function displayResults(platforms) {
+    console.log('🎯 Displaying results for platforms:', platforms);
+    console.log('📦 Converted images:', convertedImages);
+    console.log('🎨 Result container element:', resultContainer);
+    console.log('📝 Result content element:', resultContent);
+
+    if (!resultContainer) {
+        console.error('❌ resultContainer element not found!');
+        return;
+    }
+
+    if (!resultContent) {
+        console.error('❌ resultContent element not found!');
+        return;
+    }
+
     resultContent.innerHTML = '';
+    resultContainer.style.display = 'block';
+    resultContainer.style.visibility = 'visible';
+    resultContainer.style.opacity = '1';
+    resultContainer.classList.add('persistent');
+    // Force a reflow to ensure styles are applied
+    resultContainer.offsetHeight;
+    console.log('✅ Set resultContainer display to block');
+    console.log('🎨 Result container computed style:', window.getComputedStyle(resultContainer).display);
+    console.log('👁️ Result container visibility:', window.getComputedStyle(resultContainer).visibility);
     
+    // Set up a MutationObserver to detect if something is trying to hide the results
+    if (window.resultObserver) {
+        window.resultObserver.disconnect();
+    }
+    window.resultObserver = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                const display = resultContainer.style.display;
+                if (display === 'none') {
+                    console.warn('⚠️ Something tried to hide the results container! Restoring visibility.');
+                    resultContainer.style.display = 'block';
+                    resultContainer.style.visibility = 'visible';
+                    resultContainer.style.opacity = '1';
+                }
+            }
+        });
+    });
+    window.resultObserver.observe(resultContainer, { attributes: true, attributeFilter: ['style'] });
+
     platforms.forEach(platform => {
         const platformData = convertedImages[platform];
-        if (!platformData) return;
-        
+        console.log(`🔍 Platform ${platform} data:`, platformData);
+
+        if (!platformData || !platformData.files || platformData.files.length === 0) {
+            console.error(`❌ No files found for platform ${platform}`);
+            return;
+        }
+
         const resultItem = document.createElement('div');
         resultItem.className = 'result-item';
-        
+
         let platformName = '';
         let fileExtension = '';
         switch(platform) {
@@ -320,24 +433,28 @@ function displayResults(platforms) {
                 fileExtension = '.png';
                 break;
         }
-        
+
+        const file = platformData.files[0];
+        console.log(`📄 File for ${platform}:`, file);
+
         resultItem.innerHTML = `
             <div>
                 <div class="platform-name">${platformName} ${fileExtension}</div>
                 <div class="platform-sizes">Sizes: ${platformData.sizes.join(', ')}</div>
                 <div class="file-info">
-                    <span class="filename">${platformData.files[0].name}</span>
-                    <button class="copy-btn" onclick="copyToClipboard('${platformData.files[0].name}')" title="Copy filename">📋</button>
+                    <span class="filename">${file.name}</span>
                 </div>
             </div>
             <a href="#" class="download-link" onclick="downloadPlatform('${platform}')">Download</a>
         `;
-        
+
         resultContent.appendChild(resultItem);
     });
-    
+
     // Show download all button if multiple platforms selected
     downloadAllBtn.style.display = platforms.length > 1 ? 'block' : 'none';
+
+    console.log('✅ Results displayed successfully');
 }
 
 // Download files for a specific platform
@@ -357,12 +474,25 @@ function downloadPlatform(platform) {
 
 // Download a single file
 function downloadFile(dataURL, filename) {
-    const link = document.createElement('a');
-    link.href = dataURL;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+        const link = document.createElement('a');
+        link.href = dataURL;
+        link.download = filename;
+        link.style.display = 'none';
+
+        document.body.appendChild(link);
+
+        // Trigger download
+        link.click();
+
+        // Clean up
+        document.body.removeChild(link);
+
+        console.log('✅ File download initiated:', filename);
+    } catch (error) {
+        console.error('❌ Download failed:', error);
+        alert('Download failed. Please try again or check the browser console for details.');
+    }
 }
 
 // Create and download ZIP file
@@ -415,49 +545,67 @@ downloadAllBtn.addEventListener('click', function() {
 
 // Create ICNS file from PNG files
 function createICNSFile(pngFiles, iconName) {
-    // For now, create a ZIP file with the iconset structure
-    // In a real implementation, this would create a proper ICNS file
-    const zip = new JSZip();
+    return new Promise((resolve) => {
+        // For now, create a ZIP file with the iconset structure
+        // In a real implementation, this would create a proper ICNS file
+        const zip = new JSZip();
 
-    pngFiles.forEach(file => {
-        const data = dataURLToBlob(file.data);
-        zip.file(file.name, data);
-    });
+        pngFiles.forEach(file => {
+            const data = dataURLToBlob(file.data);
+            if (data) {
+                zip.file(file.name, data);
+            }
+        });
 
-    zip.generateAsync({type:"blob"}).then(function(content) {
-        const icnsBlob = new Blob([content], {type: 'application/octet-stream'});
-        const icnsURL = URL.createObjectURL(icnsBlob);
+        zip.generateAsync({type:"blob"}).then(function(content) {
+            const icnsBlob = new Blob([content], {type: 'application/octet-stream'});
+            const icnsURL = URL.createObjectURL(icnsBlob);
 
-        // Replace the PNG files with the ICNS file
-        convertedImages.macOS.files = [{
-            name: `${iconName}.icns`,
-            data: icnsURL,
-            size: 'ICNS'
-        }];
+            // Replace the PNG files with the ICNS file
+            convertedImages.macOS.files = [{
+                name: `${iconName}.icns`,
+                data: icnsURL,
+                size: 'ICNS'
+            }];
+            resolve();
+        }).catch(function(error) {
+            console.error('Error creating ICNS file:', error);
+            // Fallback: keep PNG files
+            resolve();
+        });
     });
 }
 
 // Create ICO file from PNG files
 function createICOFile(pngFiles, iconName) {
-    // For now, create a ZIP file with all PNG sizes
-    // In a real implementation, this would create a proper ICO file
-    const zip = new JSZip();
+    return new Promise((resolve) => {
+        // For now, create a ZIP file with all PNG sizes
+        // In a real implementation, this would create a proper ICO file
+        const zip = new JSZip();
 
-    pngFiles.forEach(file => {
-        const data = dataURLToBlob(file.data);
-        zip.file(file.name, data);
-    });
+        pngFiles.forEach(file => {
+            const data = dataURLToBlob(file.data);
+            if (data) {
+                zip.file(file.name, data);
+            }
+        });
 
-    zip.generateAsync({type:"blob"}).then(function(content) {
-        const icoBlob = new Blob([content], {type: 'application/octet-stream'});
-        const icoURL = URL.createObjectURL(icoBlob);
+        zip.generateAsync({type:"blob"}).then(function(content) {
+            const icoBlob = new Blob([content], {type: 'application/octet-stream'});
+            const icoURL = URL.createObjectURL(icoBlob);
 
-        // Replace the PNG files with the ICO file
-        convertedImages.windows.files = [{
-            name: `${iconName}.ico`,
-            data: icoURL,
-            size: 'ICO'
-        }];
+            // Replace the PNG files with the ICO file
+            convertedImages.windows.files = [{
+                name: `${iconName}.ico`,
+                data: icoURL,
+                size: 'ICO'
+            }];
+            resolve();
+        }).catch(function(error) {
+            console.error('Error creating ICO file:', error);
+            // Fallback: keep PNG files
+            resolve();
+        });
     });
 }
 
@@ -469,14 +617,32 @@ function updateProgress(percent, text) {
 
 // Handle reset button
 resetBtn.addEventListener('click', function() {
-    resetImage();
+    // Ask user if they want to keep the results
+    if (resultContainer.style.display === 'block' && Object.keys(convertedImages).length > 0) {
+        const keepResults = confirm('Do you want to keep the conversion results visible?');
+        if (keepResults) {
+            // Only reset the image input, not the results
+            resetImage(true); // true = preserve results
+            return;
+        }
+    }
+    
+    // Full reset
+    resetImage(false); // false = clear everything
     filenameInput.value = 'app_icon';
     resultContainer.style.display = 'none';
+    resultContainer.classList.remove('persistent');
     progressContainer.style.display = 'none';
     document.getElementById('macOS').checked = true;
     document.getElementById('windows').checked = true;
     document.getElementById('linux').checked = true;
+    
+    // Disconnect the observer when resetting
+    if (window.resultObserver) {
+        window.resultObserver.disconnect();
+    }
 });
+
 
 
 // Keyboard shortcuts
@@ -500,25 +666,40 @@ document.addEventListener('keydown', function(e) {
 });
 
 // Copy to clipboard functionality
-function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(function() {
-        // Show success feedback
-        const btn = event.target;
-        const originalText = btn.textContent;
-        btn.textContent = '✅';
-        btn.style.background = '#28a745';
-        setTimeout(() => {
-            btn.textContent = originalText;
-            btn.style.background = '';
-        }, 1000);
-    }).catch(function(err) {
-        console.error('Failed to copy: ', err);
-        // Fallback for older browsers
+
+
+function showCopySuccess() {
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = '✅';
+    btn.style.background = '#28a745';
+    setTimeout(() => {
+        btn.textContent = originalText;
+        btn.style.background = '';
+    }, 1000);
+}
+
+function fallbackCopy(text) {
+    try {
         const textArea = document.createElement('textarea');
         textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
         document.body.appendChild(textArea);
+        textArea.focus();
         textArea.select();
-        document.execCommand('copy');
+
+        const successful = document.execCommand('copy');
+        if (successful) {
+            showCopySuccess();
+        } else {
+            alert('Copy failed. Please manually copy: ' + text);
+        }
+
         document.body.removeChild(textArea);
-    });
+    } catch (err) {
+        console.error('Fallback copy failed:', err);
+        alert('Copy failed. Please manually copy: ' + text);
+    }
 }
