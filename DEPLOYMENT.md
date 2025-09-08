@@ -24,7 +24,26 @@ If you haven't already, you need to get these webapp files onto your local machi
 
 ### 3. Push Files to Your GitHub Repository
 
-Open a terminal/command prompt and navigate to the webapp directory, then run:
+#### Option A: Automated Deployment (Recommended)
+
+Navigate to the webapp directory and run the deployment script:
+
+```bash
+cd webapp
+./deploy.sh
+```
+
+The script will:
+- Initialize git repository (if needed)
+- Add all files
+- Commit the changes
+- Ask for your repository URL (if not set)
+- Push to GitHub
+- Provide next steps for enabling GitHub Pages
+
+#### Option B: Manual Deployment
+
+If you prefer to do it manually, run these commands in the webapp directory:
 
 ```bash
 # Initialize git repository
@@ -36,8 +55,8 @@ git add .
 # Commit the files
 git commit -m "Initial commit: Multiplatform Icon Converter webapp"
 
-# Add your GitHub repository as remote
-git remote add origin https://github.com/xcodeBn/multiplatform-icon-converter.git
+# Add your GitHub repository as remote (replace with your actual repo name)
+git remote add origin https://github.com/xcodeBn/JvmIconConverter.git
 
 # Push to GitHub
 git branch -M main
@@ -57,7 +76,7 @@ git push -u origin main
 1. After pushing, GitHub will automatically run the deployment workflow
 2. You can check the workflow progress in the "Actions" tab of your repository
 3. Once the workflow completes successfully, your webapp will be available at:
-   https://xcodeBn.github.io/multiplatform-icon-converter/
+   https://xcodeBn.github.io/JvmIconConverter/
 
 ## Updating the Webapp
 
